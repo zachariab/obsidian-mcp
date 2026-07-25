@@ -16,6 +16,7 @@ export interface VaultConfig {
 
 export class GitVaultManager implements VaultManager {
   private config: VaultConfig;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor(config: VaultConfig) {
     this.config = config;
@@ -58,8 +59,24 @@ export class GitVaultManager implements VaultManager {
    * Initialize the vault (clone or sync on every invocation)
    * - Cold start: Clone the repo if it doesn't exist
    * - Warm start: Sync with remote on every request
+   *
+   * Uses a promise mutex so concurrent callers (e.g. read-notes batch) share
+   * one initialization rather than racing to clone the same directory.
    */
   private async initialize(): Promise<void> {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this._initialize();
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  private async _initialize(): Promise<void> {
     const vaultExists = existsSync(this.config.vaultPath);
 
     if (!vaultExists) {
