@@ -16,21 +16,30 @@ import { logger } from '@/utils/logger';
 async function authenticateToken(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
+  const baseUrl = process.env.BASE_URL || '';
+  const resourceMetadataUrl = `${baseUrl}/.well-known/oauth-protected-resource`;
+
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({
-      error: 'unauthorized',
-      error_description: 'Missing or invalid Authorization header',
-    });
+    res
+      .status(401)
+      .set('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`)
+      .json({
+        error: 'unauthorized',
+        error_description: 'Missing or invalid Authorization header',
+      });
     return;
   }
 
   const token = authHeader.substring(7);
 
   if (!(await auth.validateAccessToken(token))) {
-    res.status(401).json({
-      error: 'invalid_token',
-      error_description: 'Access token is invalid or expired',
-    });
+    res
+      .status(401)
+      .set('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`)
+      .json({
+        error: 'invalid_token',
+        error_description: 'Access token is invalid or expired',
+      });
     return;
   }
 
@@ -112,4 +121,5 @@ export function registerMcpRoute(app: Express, mcpServer: McpServer): void {
   };
 
   app.post('/mcp', authenticateToken, mcpHandler);
+  app.post('/', authenticateToken, mcpHandler);
 }

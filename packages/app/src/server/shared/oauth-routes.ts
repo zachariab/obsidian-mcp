@@ -38,6 +38,14 @@ export function registerOAuthRoutes(app: Express, config: OAuthConfig): void {
     res.cookie('session_id', sessionId, sessionCookieOptions);
   };
 
+  app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+    res.json({
+      resource: baseUrl,
+      authorization_servers: [baseUrl],
+      mcp_endpoint: `${baseUrl}/mcp`,
+    });
+  });
+
   app.get('/.well-known/oauth-authorization-server', (_req, res) => {
     res.json({
       issuer: baseUrl,
